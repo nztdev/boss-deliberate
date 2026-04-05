@@ -3,7 +3,7 @@ const SHELL  = [
   './',
   './index.html',
   './manifest.json',
-  '../engine/engine.js',
+  './engine/engine.js',
 ];
 
 self.addEventListener('install', e => {
