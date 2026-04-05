@@ -1,0 +1,14 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Local state — never commit user API keys or pool state
+*.local
+.env
+
+# Model weights if running local inference
+models/
