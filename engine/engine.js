@@ -1,6 +1,7 @@
 /**
  * BOSS Deliberation Engine — engine.js
  * =====================================
+ * github.com/nztdev/boss-kernel
  * github.com/nztdev/boss-deliberate
  *
  * The shared core of two products:
