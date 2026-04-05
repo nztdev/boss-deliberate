@@ -1,0 +1,19 @@
+{
+  "name": "deliberate",
+  "short_name": "deliberate",
+  "description": "Ask once, filter many. Multi-model AI deliberation that surfaces disagreement so you don't have to.",
+  "start_url": "/boss-deliberate/app/",
+  "scope": "/boss-deliberate/app/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0a0f1e",
+  "theme_color": "#0a0f1e",
+  "icons": [
+    {
+      "src": "https://img.icons8.com/wired/512/4a9eff/artificial-intelligence.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
