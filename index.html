@@ -948,8 +948,9 @@ footer {
 </div>
 
 <script type="module">
-import { deliberate, buildDefaultPool, loadPool, savePool,
-         DISSONANCE_AGREE, DISSONANCE_WARN } from './engine/engine.js';
+import Engine from './engine/engine.js';
+const { deliberate, buildDefaultPool, loadPool, savePool,
+        DISSONANCE_AGREE, DISSONANCE_WARN } = Engine;
 
 /* ── State ──────────────────────────────────────────────────────────────── */
 let pool = null;
