@@ -34,8 +34,8 @@
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const ENGINE_VERSION   = '0.1.0';
-const DISSONANCE_AGREE = 0.35;  // below this → models agree → early exit
-const DISSONANCE_WARN  = 0.60;  // above this → genuine contradiction
+export const DISSONANCE_AGREE = 0.35;  // below this → models agree → early exit
+export const DISSONANCE_WARN  = 0.60;  // above this → genuine contradiction
 const BOND_DECAY_K     = 0.6;
 const BOND_LOOKBACK    = 4;
 const BASE_DECAY       = 0.05;
