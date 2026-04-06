@@ -303,10 +303,12 @@ async function callGemini(node, intent, systemPrompt) {
 }
 
 async function callMistralHF(node, intent, systemPrompt) {
-  // HuggingFace Inference API — free tier, no billing required
-  const model = node.model || 'mistralai/Mistral-7B-Instruct-v0.3';
-  const url   = `https://api-inference.huggingface.co/models/${model}`;
-  const prompt = `<s>[INST] ${systemPrompt || defaultSystemPrompt(node)}\n\n${intent} [/INST]`;
+  // HuggingFace Serverless Inference API (v2) — free tier, no billing required.
+  // Uses the /v1/chat/completions OpenAI-compatible endpoint introduced in 2024.
+  // Model: Qwen2.5-72B-Instruct is reliably warm on free tier and highly capable.
+  // Mistral-7B-Instruct-v0.3 is often cold or restricted on free accounts.
+  const model = node.model || 'Qwen/Qwen2.5-72B-Instruct';
+  const url   = `https://api-inference.huggingface.co/models/${model}/v1/chat/completions`;
   try {
     const r = await fetch(url, {
       method: 'POST',
@@ -315,18 +317,27 @@ async function callMistralHF(node, intent, systemPrompt) {
         'Authorization': `Bearer ${node.apiKey}`,
       },
       body: JSON.stringify({
-        inputs: prompt,
-        parameters: { max_new_tokens: 512, temperature: 0.4, return_full_text: false },
+        model,
+        messages: [
+          { role: 'system', content: systemPrompt || defaultSystemPrompt(node) },
+          { role: 'user',   content: intent },
+        ],
+        max_tokens:  512,
+        temperature: 0.4,
+        stream:      false,
       }),
-      signal: AbortSignal.timeout(30000),  // HF cold-start can be slow
+      signal: AbortSignal.timeout(30000),
     });
     if (!r.ok) {
       const err = await r.json().catch(() => ({}));
-      throw new Error(`HuggingFace ${r.status}: ${err?.error || r.statusText}`);
+      // Common causes:
+      //   401 → invalid or missing HF token
+      //   403 → model requires Pro subscription or gated access approval
+      //   503 → model loading (cold start) — retry in ~20s
+      throw new Error(`HuggingFace ${r.status}: ${err?.error?.message || err?.error || r.statusText}`);
     }
     const d = await r.json();
-    const text = Array.isArray(d) ? d[0]?.generated_text : d?.generated_text;
-    return text?.trim() || null;
+    return d.choices?.[0]?.message?.content?.trim() || null;
   } catch(e) {
     return { error: e.message };
   }
@@ -725,10 +736,10 @@ export function buildDefaultPool(keys = {}) {
       resonance: 1.2,
     }),
     new LLMNode({
-      name:      'Mistral 7B',
+      name:      'Qwen 2.5 72B',
       provider:  'mistral',
-      model:     'mistralai/Mistral-7B-Instruct-v0.3',
-      specialty: 'code generation technical explanation structured output logical reasoning european languages',
+      model:     'Qwen/Qwen2.5-72B-Instruct',
+      specialty: 'code generation technical explanation structured output logical reasoning multilingual analysis',
       tier:      2,
       apiKey:    keys.huggingface || '',
       warmth:    0.4,
