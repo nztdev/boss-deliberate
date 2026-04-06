@@ -775,7 +775,7 @@ footer {
         <div class="step">
           <div class="step-num">1</div>
           <div class="step-text">
-            <strong>You ask a question.</strong> Deliberate sends it simultaneously to multiple AI models — currently Groq, Gemini, and Mistral.
+            <strong>You ask a question.</strong> Deliberate sends it simultaneously to multiple AI models — currently Groq, Gemini, and Qwen 2.5 (via HuggingFace), with support for custom models.
           </div>
         </div>
         <hr class="step-divider">
@@ -923,11 +923,11 @@ footer {
         </div>
         <div class="field">
           <label>
-            HuggingFace (Mistral 7B)
+            HuggingFace (Qwen 2.5 72B)
             <span class="field-badge badge-t2">T2 · tiebreaker</span>
           </label>
           <input type="password" id="key-hf" placeholder="hf_…">
-          <span class="field-hint">Free tier at <strong style="color:var(--muted)">huggingface.co/settings/tokens</strong></span>
+          <span class="field-hint">Free tier at <strong style="color:var(--muted)">huggingface.co/settings/tokens</strong> — create a token with Inference API access</span>
         </div>
       </div>
     </div>
@@ -936,8 +936,54 @@ footer {
       <div class="modal-section-title">how tiers work</div>
       <div class="field-hint" style="line-height:1.7;font-size:12px;color:var(--muted)">
         <strong style="color:var(--text)">Tier 1 models</strong> (Groq, Gemini) respond in parallel to every question. If they broadly agree, you get their answer immediately.<br><br>
-        <strong style="color:var(--text)">Tier 2 (Mistral)</strong> only activates when T1 models disagree significantly. It acts as a tiebreaker — siding with whichever T1 answer it agrees with more. Without a T2 key, deliberate still works but cannot resolve strong disagreements.
+        <strong style="color:var(--text)">Tier 2 (Qwen 2.5)</strong> only activates when T1 models disagree significantly. It acts as a tiebreaker — siding with whichever T1 answer it agrees with more. Without a T2 key, deliberate still works but cannot resolve strong disagreements.
       </div>
+    </div>
+
+    <div class="modal-section">
+      <div class="modal-section-title">add a custom model</div>
+      <div class="field-hint" style="margin-bottom:14px;font-size:12px;color:var(--muted)">
+        Add any OpenAI-compatible model to the pool. Groq and HuggingFace both use this format. Set tier to 1 for primary models or 2 for tiebreakers.
+      </div>
+      <div class="field-group" id="custom-model-fields" style="display:none">
+        <div class="field">
+          <label>Display name</label>
+          <input type="text" id="custom-name" placeholder="e.g. Llama 3.1 70B">
+        </div>
+        <div class="field">
+          <label>Provider</label>
+          <select id="custom-provider" style="background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:9px 12px;color:var(--text);font-family:var(--mono);font-size:12px;outline:none;width:100%">
+            <option value="groq">Groq</option>
+            <option value="gemini">Google Gemini</option>
+            <option value="mistral">HuggingFace</option>
+            <option value="ollama">Ollama (local)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Model string</label>
+          <input type="text" id="custom-model" placeholder="e.g. llama-3.1-70b-versatile">
+        </div>
+        <div class="field">
+          <label>API key (leave blank to reuse existing key for this provider)</label>
+          <input type="password" id="custom-key" placeholder="optional — uses saved key if blank">
+        </div>
+        <div class="field">
+          <label>Specialty (what this model is good at)</label>
+          <input type="text" id="custom-specialty" placeholder="e.g. long context reasoning multilingual">
+        </div>
+        <div class="field">
+          <label>Tier</label>
+          <select id="custom-tier" style="background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:9px 12px;color:var(--text);font-family:var(--mono);font-size:12px;outline:none;width:100%">
+            <option value="1">Tier 1 — primary (called on every question)</option>
+            <option value="2">Tier 2 — tiebreaker (only called on disagreement)</option>
+          </select>
+        </div>
+        <button class="btn-save" style="align-self:flex-start;margin-top:4px" onclick="addCustomModel()">add to pool</button>
+      </div>
+      <div id="custom-models-list" style="margin-top:10px;display:flex;flex-direction:column;gap:6px"></div>
+      <button class="btn-cancel" style="margin-top:10px;font-size:11px" onclick="toggleCustomForm()">
+        <span id="custom-toggle-label">+ add custom model</span>
+      </button>
     </div>
 
     <div class="modal-footer">
@@ -948,16 +994,16 @@ footer {
 </div>
 
 <script type="module">
-import Engine from './engine/engine.js';
-const { deliberate, buildDefaultPool, loadPool, savePool,
-        DISSONANCE_AGREE, DISSONANCE_WARN } = Engine;
+import { deliberate, buildDefaultPool, loadPool, savePool,
+         LLMNode, DISSONANCE_AGREE, DISSONANCE_WARN } from '../engine/engine.js';
 
 /* ── State ──────────────────────────────────────────────────────────────── */
 let pool = null;
 let lastResult = null;
 let transparencyOpen = false;
-const POOL_KEY = 'DELIBERATE_POOL';
-const KEYS_KEY = 'DELIBERATE_KEYS';
+const POOL_KEY    = 'DELIBERATE_POOL';
+const KEYS_KEY    = 'DELIBERATE_KEYS';
+const CUSTOM_KEY  = 'DELIBERATE_CUSTOM_MODELS';
 
 /* ── Bootstrap ──────────────────────────────────────────────────────────── */
 (function init() {
@@ -983,20 +1029,107 @@ function loadKeys() {
 
 function rebuildPool() {
   const k = getKeys();
+  const keyMap = {
+    groq:        k.groq   || '',
+    gemini:      k.gemini || '',
+    huggingface: k.hf     || '',
+  };
   const serialised = localStorage.getItem(POOL_KEY);
-  pool = loadPool(serialised, {
-    groq:        k.groq   || '',
-    gemini:      k.gemini || '',
-    huggingface: k.hf     || '',
-  }) || buildDefaultPool({
-    groq:        k.groq   || '',
-    gemini:      k.gemini || '',
-    huggingface: k.hf     || '',
+  pool = loadPool(serialised, keyMap) || buildDefaultPool(keyMap);
+
+  // Inject custom models into pool
+  const custom = getCustomModels();
+  custom.forEach(m => {
+    const exists = pool.find(n => n.id === `${m.provider}-${m.model}`.replace(/[^a-z0-9-]/gi, '-'));
+    if (!exists) {
+      pool.push(new LLMNode({
+        name:      m.name,
+        provider:  m.provider,
+        model:     m.model,
+        specialty: m.specialty || 'general purpose reasoning',
+        tier:      m.tier || 1,
+        apiKey:    m.key || keyMap[m.provider === 'mistral' ? 'huggingface' : m.provider] || '',
+        warmth:    0.4,
+        resonance: 1.0,
+      }));
+    }
   });
 }
 
+/* ── Custom models ──────────────────────────────────────────────────────── */
+function getCustomModels() {
+  try { return JSON.parse(localStorage.getItem(CUSTOM_KEY) || '[]'); } catch(_) { return []; }
+}
+
+window.toggleCustomForm = function() {
+  const fields = document.getElementById('custom-model-fields');
+  const label  = document.getElementById('custom-toggle-label');
+  const open   = fields.style.display === 'none';
+  fields.style.display = open ? 'flex' : 'none';
+  fields.style.flexDirection = 'column';
+  fields.style.gap = '12px';
+  label.textContent = open ? '− cancel' : '+ add custom model';
+};
+
+window.addCustomModel = function() {
+  const name      = document.getElementById('custom-name').value.trim();
+  const provider  = document.getElementById('custom-provider').value;
+  const model     = document.getElementById('custom-model').value.trim();
+  const key       = document.getElementById('custom-key').value.trim();
+  const specialty = document.getElementById('custom-specialty').value.trim();
+  const tier      = parseInt(document.getElementById('custom-tier').value);
+
+  if (!name || !model) {
+    alert('Display name and model string are required.');
+    return;
+  }
+
+  const custom = getCustomModels();
+  custom.push({ name, provider, model, key, specialty, tier });
+  localStorage.setItem(CUSTOM_KEY, JSON.stringify(custom));
+
+  // Clear form
+  ['custom-name','custom-model','custom-key','custom-specialty'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  document.getElementById('custom-model-fields').style.display = 'none';
+  document.getElementById('custom-toggle-label').textContent = '+ add custom model';
+
+  renderCustomModelsList();
+  rebuildPool();
+  renderModelPills();
+};
+
+function renderCustomModelsList() {
+  const list   = document.getElementById('custom-models-list');
+  const custom = getCustomModels();
+  if (!custom.length) { list.innerHTML = ''; return; }
+
+  list.innerHTML = custom.map((m, i) => `
+    <div style="display:flex;align-items:center;justify-content:space-between;
+                padding:8px 10px;background:var(--surface3);border-radius:var(--radius-sm);
+                font-size:11px;font-family:var(--mono);">
+      <span style="color:var(--text)">${m.name}</span>
+      <span style="color:var(--hint)">${m.provider} · T${m.tier}</span>
+      <button onclick="removeCustomModel(${i})"
+        style="background:transparent;border:none;color:var(--red);cursor:pointer;font-size:13px;padding:0 4px">×</button>
+    </div>`).join('');
+}
+
+window.removeCustomModel = function(idx) {
+  const custom = getCustomModels();
+  custom.splice(idx, 1);
+  localStorage.setItem(CUSTOM_KEY, JSON.stringify(custom));
+  renderCustomModelsList();
+  rebuildPool();
+  renderModelPills();
+};
+
 /* ── Settings ───────────────────────────────────────────────────────────── */
-window.openSettings  = () => document.getElementById('settings-modal').classList.add('open');
+window.openSettings  = () => {
+  document.getElementById('settings-modal').classList.add('open');
+  renderCustomModelsList();
+};
 window.closeSettings = () => document.getElementById('settings-modal').classList.remove('open');
 
 window.saveSettings = function() {
@@ -1015,10 +1148,13 @@ function renderModelPills() {
   const k    = getKeys();
   const bar  = document.getElementById('model-status-bar');
   const defs = [
-    { label: 'Groq',   key: k.groq,   tier: 'T1' },
-    { label: 'Gemini', key: k.gemini, tier: 'T1' },
-    { label: 'Mistral',key: k.hf,     tier: 'T2' },
+    { label: 'Groq',    key: k.groq,   tier: 'T1' },
+    { label: 'Gemini',  key: k.gemini, tier: 'T1' },
+    { label: 'Qwen 2.5',key: k.hf,    tier: 'T2' },
   ];
+  const custom = getCustomModels();
+  custom.forEach(m => defs.push({ label: m.name, key: m.key || '?', tier: `T${m.tier}` }));
+
   bar.innerHTML = defs.map(d => {
     const cls = d.key ? 'active' : 'inactive';
     return `<div class="model-pill ${cls}">
