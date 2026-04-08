@@ -34,8 +34,8 @@
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const ENGINE_VERSION   = '0.1.0';
-export const DISSONANCE_AGREE = 0.35;  // below this → models agree → early exit
-export const DISSONANCE_WARN  = 0.60;  // above this → genuine contradiction
+const DISSONANCE_AGREE = 0.35;  // below this → models agree → early exit
+const DISSONANCE_WARN  = 0.60;  // above this → genuine contradiction
 const BOND_DECAY_K     = 0.6;
 const BOND_LOOKBACK    = 4;
 const BASE_DECAY       = 0.05;
@@ -303,12 +303,13 @@ async function callGemini(node, intent, systemPrompt) {
 }
 
 async function callMistralHF(node, intent, systemPrompt) {
-  // HuggingFace Serverless Inference API (v2) — free tier, no billing required.
-  // Uses the /v1/chat/completions OpenAI-compatible endpoint introduced in 2024.
-  // Model: Qwen2.5-72B-Instruct is reliably warm on free tier and highly capable.
-  // Mistral-7B-Instruct-v0.3 is often cold or restricted on free accounts.
-  const model = node.model || 'Qwen/Qwen2.5-72B-Instruct';
-  const url   = `https://api-inference.huggingface.co/models/${model}/v1/chat/completions`;
+  // HuggingFace Inference Router — free tier, no billing required.
+  // Endpoint: router.huggingface.co/v1 (updated 2026 — old api-inference endpoint deprecated)
+  // Model appended with provider suffix e.g. ':together' or ':nebius'
+  // Qwen2.5-7B-Instruct is the recommended free-tier model — warm, fast, capable tiebreaker.
+  const model    = node.model || 'Qwen/Qwen2.5-7B-Instruct';
+  const provider = node.hfProvider || 'together';  // 'together', 'nebius', 'auto'
+  const url      = 'https://router.huggingface.co/v1/chat/completions';
   try {
     const r = await fetch(url, {
       method: 'POST',
@@ -317,7 +318,7 @@ async function callMistralHF(node, intent, systemPrompt) {
         'Authorization': `Bearer ${node.apiKey}`,
       },
       body: JSON.stringify({
-        model,
+        model:       `${model}:${provider}`,
         messages: [
           { role: 'system', content: systemPrompt || defaultSystemPrompt(node) },
           { role: 'user',   content: intent },
@@ -332,8 +333,9 @@ async function callMistralHF(node, intent, systemPrompt) {
       const err = await r.json().catch(() => ({}));
       // Common causes:
       //   401 → invalid or missing HF token
-      //   403 → model requires Pro subscription or gated access approval
-      //   503 → model loading (cold start) — retry in ~20s
+      //   403 → model requires Pro subscription or provider not available on free tier
+      //   404 → model:provider combination doesn't exist — try ':nebius' or ':auto'
+      //   503 → provider overloaded — retry or switch provider suffix
       throw new Error(`HuggingFace ${r.status}: ${err?.error?.message || err?.error || r.statusText}`);
     }
     const d = await r.json();
@@ -736,9 +738,9 @@ export function buildDefaultPool(keys = {}) {
       resonance: 1.2,
     }),
     new LLMNode({
-      name:      'Qwen 2.5 72B',
+      name:      'Qwen 2.5 7B',
       provider:  'mistral',
-      model:     'Qwen/Qwen2.5-72B-Instruct',
+      model:     'Qwen/Qwen2.5-7B-Instruct',
       specialty: 'code generation technical explanation structured output logical reasoning multilingual analysis',
       tier:      2,
       apiKey:    keys.huggingface || '',
