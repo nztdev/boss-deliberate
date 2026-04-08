@@ -923,7 +923,7 @@ footer {
         </div>
         <div class="field">
           <label>
-            HuggingFace (Qwen 2.5 72B)
+            HuggingFace (Qwen 2.5 7B)
             <span class="field-badge badge-t2">T2 · tiebreaker</span>
           </label>
           <input type="password" id="key-hf" placeholder="hf_…">
@@ -936,7 +936,7 @@ footer {
       <div class="modal-section-title">how tiers work</div>
       <div class="field-hint" style="line-height:1.7;font-size:12px;color:var(--muted)">
         <strong style="color:var(--text)">Tier 1 models</strong> (Groq, Gemini) respond in parallel to every question. If they broadly agree, you get their answer immediately.<br><br>
-        <strong style="color:var(--text)">Tier 2 (Qwen 2.5)</strong> only activates when T1 models disagree significantly. It acts as a tiebreaker — siding with whichever T1 answer it agrees with more. Without a T2 key, deliberate still works but cannot resolve strong disagreements.
+        <strong style="color:var(--text)">Tier 2 (Qwen 2.5 7B)</strong> only activates when T1 models disagree significantly. It acts as a tiebreaker — siding with whichever T1 answer it agrees with more. Without a T2 key, deliberate still works but cannot resolve strong disagreements.
       </div>
     </div>
 
@@ -995,7 +995,7 @@ footer {
 
 <script type="module">
 import { deliberate, buildDefaultPool, loadPool, savePool,
-         LLMNode, DISSONANCE_AGREE, DISSONANCE_WARN } from './engine/engine.js';
+         LLMNode, DISSONANCE_AGREE, DISSONANCE_WARN } from '../engine/engine.js';
 
 /* ── State ──────────────────────────────────────────────────────────────── */
 let pool = null;
@@ -1150,7 +1150,7 @@ function renderModelPills() {
   const defs = [
     { label: 'Groq',    key: k.groq,   tier: 'T1' },
     { label: 'Gemini',  key: k.gemini, tier: 'T1' },
-    { label: 'Qwen 2.5',key: k.hf,    tier: 'T2' },
+    { label: 'Qwen 2.5 7B', key: k.hf, tier: 'T2' },
   ];
   const custom = getCustomModels();
   custom.forEach(m => defs.push({ label: m.name, key: m.key || '?', tier: `T${m.tier}` }));
