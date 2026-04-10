@@ -1550,12 +1550,13 @@ function renderFieldView(result) {
   if (dis != null) {
     const disLabel = dis < 0.35 ? 'agreed' : dis < 0.60 ? 'partial' : 'conflict';
     const disCol   = dis < 0.35 ? '#34d399' : dis < 0.60 ? '#f59e0b' : '#f87171';
+    const labelCy  = H / 2 + 15;  // matches the centre used in polygon layout
     svg += `
-    <text x="${cx}" y="${(cy - 8).toFixed(1)}"
+    <text x="${cx}" y="${(labelCy - 8).toFixed(1)}"
       text-anchor="middle" dominant-baseline="central"
       font-family="'JetBrains Mono', monospace" font-size="9"
       fill="${disCol}" opacity="0.5">${disLabel}</text>
-    <text x="${cx}" y="${(cy + 6).toFixed(1)}"
+    <text x="${cx}" y="${(labelCy + 6).toFixed(1)}"
       text-anchor="middle" dominant-baseline="central"
       font-family="'JetBrains Mono', monospace" font-size="10"
       fill="${disCol}" opacity="0.7">${dis.toFixed(3)}</text>`;
