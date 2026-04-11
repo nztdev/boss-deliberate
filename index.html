@@ -880,7 +880,7 @@ footer {
 
       <div class="output-meta">
         <div class="confidence-group">
-          <span class="conf-label">confidence</span>
+          <span class="conf-label" title="how much the models agreed with each other">consensus</span>
           <div class="conf-indicator">
             <div class="conf-bar">
               <div class="conf-fill" id="conf-fill"></div>
@@ -894,6 +894,18 @@ footer {
             show how this was decided ↓
           </button>
         </div>
+      </div>
+
+      <div id="creative-note" class="hidden" style="
+        padding: 8px 16px;
+        font-size: 11px;
+        color: var(--muted);
+        border-bottom: 1px solid var(--border);
+        line-height: 1.6;
+        background: var(--surface2);
+      ">
+        Low consensus on open-ended questions is normal — both models gave valid but
+        different responses. This reflects stylistic variation, not answer quality.
       </div>
 
       <div class="contradiction-banner hidden" id="contradiction-banner">
@@ -1318,7 +1330,7 @@ function renderOutput(result) {
 
   // Winner label
   const winnerEl = document.getElementById('winner-label');
-  winnerEl.textContent = result.winner ? `· ${result.winner.name} led` : '';
+  winnerEl.textContent = result.winner ? `· ${result.winner.name}` : '';
 
   // Contradiction banner
   const banner = document.getElementById('contradiction-banner');
@@ -1332,7 +1344,7 @@ function renderOutput(result) {
     banner.classList.remove('hidden');
     document.getElementById('contradiction-text').textContent =
       'The models initially disagreed. A tiebreaker was consulted and resolved the conflict. ' +
-      'Confidence reflects this uncertainty.';
+      'Consensus reflects the models disagreeing on approach.';
   } else {
     banner.classList.add('hidden');
   }
@@ -1390,6 +1402,21 @@ function renderOutput(result) {
 
   // Render field view (always, so it's ready when user switches)
   renderFieldView(result);
+
+  // Creative intent detection — low consensus on open-ended tasks is expected
+  const intentLower = document.getElementById('intent').value.toLowerCase();
+  const creativeSignals = [
+    'poem','write','story','essay','imagine','creative','fiction',
+    'song','lyrics','haiku','narrative','describe','invent','draft',
+    'opinion','think about','how do you feel','what do you think'
+  ];
+  const isCreative = pct < 40 && creativeSignals.some(s => intentLower.includes(s));
+  const creativeNote = document.getElementById('creative-note');
+  if (isCreative) {
+    creativeNote.classList.remove('hidden');
+  } else {
+    creativeNote.classList.add('hidden');
+  }
 
   show('output-card');
   // Reset transparency and view state
