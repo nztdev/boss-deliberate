@@ -917,7 +917,10 @@ footer {
 
       <div class="transparency-panel" id="transparency-panel">
         <div class="trans-header">
-          <span>deliberation trace</span>
+          <div style="display:flex;flex-direction:column;gap:2px">
+            <span>deliberation trace</span>
+            <span class="trans-explainer">response previews · full answer shown above</span>
+          </div>
           <div class="view-toggle-row">
             <button class="view-tab active" id="tab-list" onclick="switchView('list')">list</button>
             <button class="view-tab" id="tab-field" onclick="switchView('field')">field</button>
@@ -1100,6 +1103,7 @@ function rebuildPool() {
     groq:        k.groq   || '',
     gemini:      k.gemini || '',
     huggingface: k.hf     || '',
+    mistral:     k.hf     || '',  // 'mistral' is the adapter name for HuggingFace-hosted models
   };
   const serialised = localStorage.getItem(POOL_KEY);
   pool = loadPool(serialised, keyMap) || buildDefaultPool(keyMap);
@@ -1366,7 +1370,7 @@ function renderOutput(result) {
     else if (c.node === result.tiebreaker) { role = 'role-tiebreak'; roleLabel = 'tiebreaker'; }
 
     const preview = c.text
-      ? c.text.slice(0, 140).replace(/</g,'&lt;') + (c.text.length > 140 ? '…' : '')
+      ? c.text.slice(0, 160).replace(/</g,'&lt;') + (c.text.length > 160 ? ' …' : '')
       : (c.error || 'no response');
 
     const latency = c.latency ? (c.latency / 1000).toFixed(1) + 's' : '—';
@@ -1377,7 +1381,7 @@ function renderOutput(result) {
         <span class="model-name-mono">${c.node.name}</span>
         <span class="model-tier-label">${tierLabel}</span>
       </div>
-      <div class="model-response-preview">${preview}</div>
+      <div class="model-response-preview" title="response preview — full answer shown above">${preview}</div>
       <div class="model-right">
         <span class="model-latency">${latency}</span>
         <span class="role-badge ${role}">${roleLabel}</span>
